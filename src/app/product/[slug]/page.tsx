@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter, useParams } from "next/navigation";
 import axios from "axios";
@@ -133,6 +133,22 @@ export default function ProductRebrandContent() {
     fetchProduct();
   }, [slug]);
 
+  // Handle buy now button click
+  const handleBuyNow = useCallback(() => {
+    if (product?.next_redirect_url) {
+      if (product.next_redirect_url.startsWith("#")) {
+        // If it's a hash link, scroll to that section
+        const element = document.querySelector(product.next_redirect_url);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      } else {
+        // Otherwise navigate to the URL
+        router.push(product.next_redirect_url);
+      }
+    }
+  }, [product?.next_redirect_url, router]);
+
   // Timer countdown effect
   useEffect(() => {
     if (timeLeft <= 0 || !product?.next_redirect_url) return;
@@ -151,7 +167,7 @@ export default function ProductRebrandContent() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [timeLeft, product]);
+  }, [timeLeft, product, handleBuyNow]);
 
   // Animation visibility effect
   useEffect(() => {
@@ -161,22 +177,6 @@ export default function ProductRebrandContent() {
   // Scroll to second section function
   const scrollToSecondSection = () => {
     secondSectionRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Handle buy now button click
-  const handleBuyNow = () => {
-    if (product?.next_redirect_url) {
-      if (product.next_redirect_url.startsWith("#")) {
-        // If it's a hash link, scroll to that section
-        const element = document.querySelector(product.next_redirect_url);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-        }
-      } else {
-        // Otherwise navigate to the URL
-        router.push(product.next_redirect_url);
-      }
-    }
   };
 
   // Loading state

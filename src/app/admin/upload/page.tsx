@@ -898,7 +898,7 @@ export default function UploadPage() {
                                 Selected: {selectedCategory.name}
                               </h4>
                               <p className="text-sm text-green-700 mt-1">
-                                This category's content will be used for your product page.
+                                This category&apos;s content will be used for your product page.
                               </p>
                             </div>
                           </div>

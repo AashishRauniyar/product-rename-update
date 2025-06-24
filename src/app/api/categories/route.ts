@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     console.error("❌ Error creating category:", error);
     
     // Handle unique constraint violation
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
       return NextResponse.json(
         { error: "A category with this name already exists" },
         { status: 409 }

@@ -63,23 +63,24 @@ export const ScrollToTop: React.FC = () => {
       {isVisible && (
         <motion.button
           initial={{ opacity: 0, scale: 0.5 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.5 }}
-          transition={{ duration: 0.3 }}
-          onClick={scrollToTop}
-          className="fixed bottom-6 left-6 z-[9999] bg-[#00D4FF] hover:bg-[#00B8E6] text-black p-3 rounded-full shadow-2xl hover:shadow-cyan-500/50 transition-all duration-300 group"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          animate={{
-            y: [0, -5, 0],
+          animate={{ 
+            opacity: 1, 
+            scale: 1,
+            y: [0, -5, 0]
           }}
-          transition={{
+          exit={{ opacity: 0, scale: 0.5 }}
+          transition={{ 
+            duration: 0.3,
             y: {
               duration: 2,
               repeat: Infinity,
               ease: "easeInOut"
             }
           }}
+          onClick={scrollToTop}
+          className="fixed bottom-6 left-6 z-[9999] bg-[#00D4FF] hover:bg-[#00B8E6] text-black p-3 rounded-full shadow-2xl hover:shadow-cyan-500/50 transition-all duration-300 group"
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
         >
           <ArrowUp className="h-6 w-6 group-hover:animate-bounce" />
           

@@ -449,7 +449,7 @@ export default function DashboardClient({ user }: { user?: any }) {
 
   // Enhanced filtering and sorting logic
   const filteredAndSortedProducts = (() => {
-    let filtered = products.filter((product) => {
+    const filtered = products.filter((product) => {
       // Text search
       const matchesSearch = 
         product.new_name.toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -4,10 +4,11 @@ import { getCategoryById, updateCategory, deleteCategory, getCategoryProductCoun
 // GET - Get single category
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const category = await getCategoryById(params.id);
+    const { id } = await params;
+    const category = await getCategoryById(id);
     
     if (!category) {
       return NextResponse.json(
@@ -29,14 +30,15 @@ export async function GET(
 // PUT - Update category
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { name, description, description_points } = body;
 
     // Check if category exists
-    const existingCategory = await getCategoryById(params.id);
+    const existingCategory = await getCategoryById(id);
     if (!existingCategory) {
       return NextResponse.json(
         { error: "Category not found" },
@@ -45,7 +47,11 @@ export async function PUT(
     }
 
     // Prepare updates object
-    const updates: any = {};
+    const updates: {
+      name?: string;
+      description?: string;
+      description_points?: string[];
+    } = {};
     
     if (name && name.trim()) {
       updates.name = name.trim();
@@ -62,7 +68,7 @@ export async function PUT(
     }
 
     // Update category
-    await updateCategory(params.id, updates);
+    await updateCategory(id, updates);
 
     return NextResponse.json(
       { message: "Category updated successfully" },
@@ -72,7 +78,7 @@ export async function PUT(
     console.error("❌ Error updating category:", error);
     
     // Handle unique constraint violation
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
       return NextResponse.json(
         { error: "A category with this name already exists" },
         { status: 409 }
@@ -89,11 +95,12 @@ export async function PUT(
 // DELETE - Delete category
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Check if category exists
-    const existingCategory = await getCategoryById(params.id);
+    const existingCategory = await getCategoryById(id);
     if (!existingCategory) {
       return NextResponse.json(
         { error: "Category not found" },
@@ -102,7 +109,7 @@ export async function DELETE(
     }
 
     // Get product count for this category
-    const productCount = await getCategoryProductCount(params.id);
+    const productCount = await getCategoryProductCount(id);
     
     if (productCount > 0) {
       return NextResponse.json(
@@ -115,7 +122,7 @@ export async function DELETE(
     }
 
     // Delete category
-    await deleteCategory(params.id);
+    await deleteCategory(id);
 
     return NextResponse.json(
       { message: "Category deleted successfully" },
@@ -124,7 +131,8 @@ export async function DELETE(
   } catch (error) {
     console.error("❌ Error deleting category:", error);
     
-    if (error.message && error.message.includes("Cannot delete category")) {
+    if (error && typeof error === 'object' && 'message' in error && 
+        typeof error.message === 'string' && error.message.includes("Cannot delete category")) {
       return NextResponse.json(
         { error: error.message },
         { status: 409 }
