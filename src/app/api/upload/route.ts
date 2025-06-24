@@ -646,6 +646,7 @@ export async function POST(req: Request) {
   const category_id = formData.get("category_id") || "";
   const nextRedirectUrl = formData.get("next_redirect_url") || "";
   const theme = formData.get("theme") || "";
+  const domain = formData.get("domain") || "";
 
   // SEO fields
   const page_title = formData.get("page_title") || "";
@@ -775,7 +776,8 @@ export async function POST(req: Request) {
       theme as string,
       "", // generatedLink (will be updated after)
       meta_description as string,
-      seo_title as string
+      seo_title as string,
+      domain as string
     );
 
     console.log("Insert response:", response);

@@ -60,6 +60,7 @@ export default function UploadPage() {
     theme: "light",
     seo_title: "",
     meta_description: "",
+    domain: "",
     old_images: [] as File[],
     new_images: [] as File[],
     badge_image_url: null as File | null,
@@ -137,7 +138,7 @@ export default function UploadPage() {
     // Update canProceed state
     setCanProceed({
       seo: !!formData.seo_title && !!formData.meta_description,
-      basic: !!formData.old_name && !!formData.new_name,
+      basic: !!formData.old_name && !!formData.new_name && !!formData.domain,
       images:
         formData.old_images.length > 0 &&
         formData.new_images.length > 0 &&
@@ -205,6 +206,7 @@ export default function UploadPage() {
     data.append("theme", formData.theme);
     data.append("seo_title", formData.seo_title);
     data.append("meta_description", formData.meta_description);
+    data.append("domain", formData.domain);
     formData.old_images.forEach((f) => data.append("old_images", f));
     formData.new_images.forEach((f) => data.append("new_images", f));
     if (formData.badge_image_url)
@@ -429,6 +431,24 @@ export default function UploadPage() {
                         required
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="domain">
+                      Domain <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="domain"
+                      type="text"
+                      name="domain"
+                      value={formData.domain}
+                      placeholder="example.com"
+                      onChange={handleChange}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      The domain this product is intended for (e.g., example.com, mystore.com)
+                    </p>
                   </div>
 
                   <div className="pt-4 flex justify-between">

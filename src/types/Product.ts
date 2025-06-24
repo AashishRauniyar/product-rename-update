@@ -17,5 +17,6 @@ export interface ProductData {
   page_title: string;
   category_name: string | null;
   category_id: string | null;
+  domain: string | null;
   total_clicks: number;
 } 

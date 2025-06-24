@@ -190,7 +190,7 @@ export async function PUT(
       'old_name', 'new_name', 'category_id', 'next_redirect_url', 
       'theme', 'page_title', 'meta_description', 'seo_title', 
       'popup_title', 'popup_content', 'rename_reason', 'badge_image_url',
-      'extra_badge_1', 'extra_badge_2'
+      'extra_badge_1', 'extra_badge_2', 'domain'
     ];
     
     for (const field of textFields) {

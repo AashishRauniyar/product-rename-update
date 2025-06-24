@@ -20,6 +20,14 @@ import {
   FolderOpen,
   Package,
   Files,
+  ChevronUp,
+  ChevronDown,
+  Filter,
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import Navbar from "@/components/navbar";
 import {
@@ -33,6 +41,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { signOut } from "next-auth/react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import {
   Line,
   LineChart,
@@ -66,7 +88,9 @@ type Product = {
   next_redirect_url: string;
   theme: string;
   generated_link: string;
+  domain?: string;
   total_clicks: number;
+  created_at?: string;
 };
 
 type Category = {
@@ -121,6 +145,16 @@ export default function DashboardClient({ user }: { user?: any }) {
   });
   const router = useRouter();
   const [timeRange, setTimeRange] = useState("yearly");
+
+  // New state for enhanced filtering, sorting, and pagination
+  const [sortField, setSortField] = useState<keyof Product>("total_clicks");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [filterDomain, setFilterDomain] = useState<string>("all");
+  const [filterTheme, setFilterTheme] = useState<string>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Fetch all products and analytics data on mount
   useEffect(() => {
@@ -260,6 +294,7 @@ export default function DashboardClient({ user }: { user?: any }) {
         formData.append("next_redirect_url", productData.next_redirect_url || "");
         formData.append("redirect_timer", (productData.redirect_timer || 7).toString());
         formData.append("theme", productData.theme || "light");
+        formData.append("domain", productData.domain || "");
         
         // SEO
         formData.append("meta_description", productData.meta_description || "");
@@ -412,14 +447,120 @@ export default function DashboardClient({ user }: { user?: any }) {
     }
   };
 
-  // Filter products based on search term
-  const filteredProducts = products.filter(
-    (product) =>
-      product.new_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.old_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (product.description &&
-        product.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Enhanced filtering and sorting logic
+  const filteredAndSortedProducts = (() => {
+    let filtered = products.filter((product) => {
+      // Text search
+      const matchesSearch = 
+        product.new_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.old_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (product.category_name && product.category_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (product.domain && product.domain.toLowerCase().includes(searchTerm.toLowerCase()));
+
+      // Category filter
+      const matchesCategory = filterCategory === "all" || 
+        (filterCategory === "no-category" && !product.category_name) ||
+        product.category_name === filterCategory;
+
+      // Domain filter
+      const matchesDomain = filterDomain === "all" || 
+        (filterDomain === "no-domain" && !product.domain) ||
+        product.domain === filterDomain;
+
+      // Theme filter
+      const matchesTheme = filterTheme === "all" || product.theme === filterTheme;
+
+      return matchesSearch && matchesCategory && matchesDomain && matchesTheme;
+    });
+
+    // Sorting
+    filtered.sort((a, b) => {
+      let aValue: any = a[sortField];
+      let bValue: any = b[sortField];
+
+      // Handle special cases
+      if (sortField === "category_name") {
+        aValue = aValue || "No Category";
+        bValue = bValue || "No Category";
+      } else if (sortField === "domain") {
+        aValue = aValue || "No Domain";
+        bValue = bValue || "No Domain";
+      } else if (sortField === "total_clicks") {
+        aValue = aValue || 0;
+        bValue = bValue || 0;
+      }
+
+      // Convert to comparable values
+      if (typeof aValue === "string") {
+        aValue = aValue.toLowerCase();
+        bValue = bValue.toLowerCase();
+      }
+
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  })();
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterCategory, filterDomain, filterTheme, sortField, sortDirection]);
+
+  // Get unique values for filters
+  const uniqueCategories = [...new Set(products.map(p => p.category_name).filter(Boolean))];
+  const uniqueDomains = [...new Set(products.map(p => p.domain).filter(Boolean))];
+  const uniqueThemes = [...new Set(products.map(p => p.theme).filter(Boolean))];
+
+  // Sorting handler
+  const handleSort = (field: keyof Product) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  // Pagination handlers
+  const goToPage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+  };
+
+  const goToFirstPage = () => goToPage(1);
+  const goToLastPage = () => goToPage(totalPages);
+  const goToPreviousPage = () => goToPage(currentPage - 1);
+  const goToNextPage = () => goToPage(currentPage + 1);
+
+  // Clear all filters
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterCategory("all");
+    setFilterDomain("all");
+    setFilterTheme("all");
+    setSortField("total_clicks");
+    setSortDirection("desc");
+    setCurrentPage(1);
+  };
+
+  // Sort icon component
+  const SortIcon = ({ field }: { field: keyof Product }) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="h-4 w-4 text-gray-400" />;
+    }
+    return sortDirection === "asc" ? 
+      <ChevronUp className="h-4 w-4 text-blue-600" /> : 
+      <ChevronDown className="h-4 w-4 text-blue-600" />;
+  };
 
   // Filter categories based on search term
   const filteredCategories = categories.filter(
@@ -520,7 +661,7 @@ export default function DashboardClient({ user }: { user?: any }) {
                   <div>
                     <CardTitle>Product Listings</CardTitle>
                     <CardDescription>
-                      Manage your product catalog
+                      Manage your product catalog ({filteredAndSortedProducts.length} of {products.length} products)
                     </CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
@@ -534,29 +675,148 @@ export default function DashboardClient({ user }: { user?: any }) {
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
                     </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowFilters(!showFilters)}
+                      className="flex items-center gap-2"
+                    >
+                      <Filter className="h-4 w-4" />
+                      Filters
+                    </Button>
                     <Button onClick={() => router.push("/admin/upload")}>
                       Add New Product
                     </Button>
                   </div>
                 </div>
+
+                {/* Advanced Filters */}
+                {showFilters && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Category</label>
+                        <Select value={filterCategory} onValueChange={setFilterCategory}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Categories" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Categories</SelectItem>
+                            <SelectItem value="no-category">No Category</SelectItem>
+                            {uniqueCategories.map((category) => (
+                              <SelectItem key={category} value={category || ""}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Domain</label>
+                        <Select value={filterDomain} onValueChange={setFilterDomain}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Domains" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Domains</SelectItem>
+                            <SelectItem value="no-domain">No Domain</SelectItem>
+                            {uniqueDomains.map((domain) => (
+                              <SelectItem key={domain} value={domain || ""}>
+                                {domain}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Theme</label>
+                        <Select value={filterTheme} onValueChange={setFilterTheme}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="All Themes" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Themes</SelectItem>
+                            {uniqueThemes.map((theme) => (
+                              <SelectItem key={theme} value={theme}>
+                                {theme}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Items per page</label>
+                        <Select value={itemsPerPage.toString()} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="5">5 per page</SelectItem>
+                            <SelectItem value="10">10 per page</SelectItem>
+                            <SelectItem value="25">25 per page</SelectItem>
+                            <SelectItem value="50">50 per page</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between items-center mt-4">
+                      <div className="text-sm text-gray-600">
+                        Showing {startIndex + 1}-{Math.min(endIndex, filteredAndSortedProducts.length)} of {filteredAndSortedProducts.length} products
+                      </div>
+                      <Button variant="outline" size="sm" onClick={clearFilters}>
+                        Clear All Filters
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto rounded-lg border">
-                  {filteredProducts.length > 0 ? (
+                  {paginatedProducts.length > 0 ? (
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-muted/50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            Product Details
+                          <th 
+                            className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort("new_name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Product Details
+                              <SortIcon field="new_name" />
+                            </div>
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            Category
+                          <th 
+                            className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort("category_name")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Category
+                              <SortIcon field="category_name" />
+                            </div>
+                          </th>
+                          <th 
+                            className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort("domain")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Domain
+                              <SortIcon field="domain" />
+                            </div>
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Configuration
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                            Analytics
+                          <th 
+                            className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleSort("total_clicks")}
+                          >
+                            <div className="flex items-center gap-2">
+                              Analytics
+                              <SortIcon field="total_clicks" />
+                            </div>
                           </th>
                           <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                             Images
@@ -567,7 +827,7 @@ export default function DashboardClient({ user }: { user?: any }) {
                         </tr>
                       </thead>
                       <tbody className="bg-card divide-y divide-gray-200">
-                        {filteredProducts.map((product) => (
+                        {paginatedProducts.map((product) => (
                           <tr key={product.id} className="hover:bg-muted/20">
                             <td className="px-4 py-4">
                               <div className="flex flex-col">
@@ -599,6 +859,19 @@ export default function DashboardClient({ user }: { user?: any }) {
                               {!product.category_name && (
                                 <p className="text-xs text-amber-600 mt-1">
                                   ⚠️ Legacy product - needs category
+                                </p>
+                              )}
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center">
+                                <Globe className="h-4 w-4 mr-2 text-muted-foreground" />
+                                <span className="font-medium text-sm">
+                                  {product.domain || 'No Domain'}
+                                </span>
+                              </div>
+                              {!product.domain && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Domain not specified
                                 </p>
                               )}
                             </td>
@@ -769,23 +1042,92 @@ export default function DashboardClient({ user }: { user?: any }) {
                       </tbody>
                     </table>
                   ) : (
-                    <div className="py-12 text-center">
-                      <p className="text-muted-foreground">
-                        {searchTerm
-                          ? "No products match your search."
-                          : "No products available."}
+                    <div className="text-center py-12">
+                      <Package className="mx-auto h-12 w-12 text-gray-400" />
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">
+                        No products found
+                      </h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        {searchTerm || filterCategory !== "all" || filterDomain !== "all" || filterTheme !== "all"
+                          ? "Try adjusting your search or filters"
+                          : "Get started by creating your first product"}
                       </p>
-                      {!searchTerm && (
-                        <Button
-                          className="mt-4"
-                          onClick={() => router.push("/admin/upload")}
-                        >
-                          Add Your First Product
-                        </Button>
+                      {(searchTerm || filterCategory !== "all" || filterDomain !== "all" || filterTheme !== "all") && (
+                        <div className="mt-6">
+                          <Button variant="outline" onClick={clearFilters}>
+                            Clear Filters
+                          </Button>
+                        </div>
                       )}
                     </div>
                   )}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-6 py-3 bg-white border-t">
+                    <div className="flex items-center text-sm text-gray-700">
+                      Showing {startIndex + 1} to {Math.min(endIndex, filteredAndSortedProducts.length)} of {filteredAndSortedProducts.length} results
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToFirstPage}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronsLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToPreviousPage}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      
+                      <div className="flex items-center space-x-1">
+                        {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                          const pageNumber = Math.max(1, Math.min(currentPage - 2 + i, totalPages - 4 + i));
+                          if (pageNumber > totalPages) return null;
+                          
+                          return (
+                            <Button
+                              key={pageNumber}
+                              variant={currentPage === pageNumber ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => goToPage(pageNumber)}
+                              className="min-w-[32px]"
+                            >
+                              {pageNumber}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToNextPage}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={goToLastPage}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronsRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

@@ -36,6 +36,7 @@ export async function initializeDatabase() {
         generated_link VARCHAR(255) DEFAULT NULL,
         meta_description TEXT,
         seo_title VARCHAR(255) DEFAULT NULL,
+        domain VARCHAR(255) DEFAULT NULL,
         total_clicks INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (category_id) REFERENCES categories(id)
@@ -46,6 +47,14 @@ export async function initializeDatabase() {
     await db.query(`
       ALTER TABLE products 
       ADD COLUMN IF NOT EXISTS category_id CHAR(36) DEFAULT NULL
+    `).catch(() => {
+      // Column might already exist, ignore error
+    });
+
+    // Add domain column to existing products table if it doesn't exist
+    await db.query(`
+      ALTER TABLE products 
+      ADD COLUMN IF NOT EXISTS domain VARCHAR(255) DEFAULT NULL
     `).catch(() => {
       // Column might already exist, ignore error
     });
@@ -107,7 +116,8 @@ export async function insertProduct(
   theme: string,
   generatedLink: string,
   meta_description: string,
-  seo_title: string
+  seo_title: string,
+  domain: string | null = null
 ) {
   const id = uuidv4();
 
@@ -134,8 +144,9 @@ export async function insertProduct(
       theme,
       generated_link,
       meta_description,
-      seo_title
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      seo_title,
+      domain
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   const params = [
@@ -154,6 +165,7 @@ export async function insertProduct(
     generatedLink,
     meta_description,
     seo_title,
+    domain,
   ];
 
   try {
@@ -214,6 +226,7 @@ export async function updateProduct(
     generated_link?: string;
     meta_description?: string;
     seo_title?: string;
+    domain?: string;
     total_clicks?: number;
   }
 ) {
@@ -251,7 +264,7 @@ export async function updateProduct(
 export async function getAllProducts(limit = 100, offset = 0) {
   try {
     const [rows] = (await db.query(
-      `SELECT p.id, p.old_name, p.new_name, p.created_at, p.generated_link, p.total_clicks, c.name as category_name
+      `SELECT p.id, p.old_name, p.new_name, p.created_at, p.generated_link, p.total_clicks, p.domain, c.name as category_name
        FROM products p
        LEFT JOIN categories c ON p.category_id = c.id
        ORDER BY p.created_at DESC
