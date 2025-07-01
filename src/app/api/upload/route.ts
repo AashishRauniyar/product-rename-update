@@ -580,6 +580,13 @@ import fs from "fs";
 import path from "path";
 import { writeFile, mkdir } from "fs/promises";
 
+// Define a file-like interface for the FormData file objects
+interface FileObject {
+  name: string;
+  size: number;
+  arrayBuffer(): Promise<ArrayBuffer>;
+}
+
 // Define the base upload directory (outside public folder for production)
 // This approach works better for deployed environments
 const getUploadDir = () => {
@@ -609,7 +616,7 @@ async function ensureDir(dirPath: string) {
 }
 
 // Function to save file to storage
-async function saveFile(file: File, folderName: string) {
+async function saveFile(file: FileObject, folderName: string) {
   // Get base upload directory
   const baseUploadDir = getUploadDir();
 
@@ -719,24 +726,26 @@ export async function POST(req: Request) {
   // Upload files to storage folders
   for (const entry of formData.entries()) {
     const [key, value] = entry;
-    if (value instanceof File) {
+    // Check if value is a file-like object (has name, size, and stream properties)
+    if (value && typeof value === 'object' && 'name' in value && 'size' in value && typeof (value as any).stream === 'function') {
       try {
+        const fileObject = value as FileObject;
         if (key === "old_images") {
-          const imagePath = await saveFile(value, "old_images");
+          const imagePath = await saveFile(fileObject, "old_images");
           oldImages.push(imagePath);
         } else if (key === "new_images") {
-          const imagePath = await saveFile(value, "new_images");
+          const imagePath = await saveFile(fileObject, "new_images");
           newImages.push(imagePath);
         } else if (key === "badge_image") {
-          const imagePath = await saveFile(value, "badge_images");
+          const imagePath = await saveFile(fileObject, "badge_images");
           console.log("Saved badge image to path:", imagePath);
 
           badgeImageUrl = imagePath;
         } else if (key === "extra_badge_1_image") {
-          const imagePath = await saveFile(value, "extra_badge_1");
+          const imagePath = await saveFile(fileObject, "extra_badge_1");
           extraBadge1Url = imagePath;
         } else if (key === "extra_badge_2_image") {
-          const imagePath = await saveFile(value, "extra_badge_2");
+          const imagePath = await saveFile(fileObject, "extra_badge_2");
           extraBadge2Url = imagePath;
         }
       } catch (error) {

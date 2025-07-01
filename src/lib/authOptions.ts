@@ -1,6 +1,3 @@
-
-
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-non-null-asserted-optional-chain */
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -13,7 +10,9 @@ import { verifyPassword } from "@/lib/auth";
 })();
 
 export const authOptions = {
-  secret: process.env.NEXTAUTH_SECRET, // or a hardcoded secret for development
+  secret: process.env.NEXTAUTH_SECRET,
+  // Add NextAuth URL configuration
+  ...(process.env.NEXTAUTH_URL && { url: process.env.NEXTAUTH_URL }),
   providers: [
     CredentialsProvider({
       name: "Credentials",
